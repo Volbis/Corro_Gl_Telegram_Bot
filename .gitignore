@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environnement
+.env
+venv/
+.venv/
+temp_backup/
+
+# Fichiers sensibles
+service_account_file.json
+*.json
+
+# VS Code
+.vscode/

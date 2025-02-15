@@ -1,8 +1,3 @@
-
-from warnings import filterwarnings
-from telegram.warnings import PTBUserWarning
-filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import CommandHandler, Application, CallbackContext, CallbackQueryHandler
 from googleapiclient.discovery import build
@@ -18,11 +13,11 @@ import asyncio
 # Constantes pour les émojis et le style
 EMOJIS = {
     "welcome": "👋",
-    "semester": "📚",
-    "part": "📑",
-    "subject": "📖",
-    "pdf": "📄",
-    "image": "🖼️",
+    "semester": "🗓️",
+    "part": "📝",
+    "subject": "📘",
+    "pdf": "🗂️",
+    "image": "🎨",
     "loading": "⏳",
     "success": "✅",
     "error": "❌",
@@ -31,8 +26,8 @@ EMOJIS = {
 }
 
 SEPARATORS = {
-    "header": "═══════════════════",
-    "section": "───────────────────"
+    "header": "•••••••••••••••⧞⧞⧞⧞⧞•••••••••••••••",
+    "section": "─⊰⊱─⊰⊱─────────────────────────⊰⊱─⊰⊱─"
 }
 
 # Charger les variables d'environnement
@@ -111,21 +106,21 @@ async def start(update: Update, context: CallbackContext) -> None:
     
     welcome_message = f"""
 {SEPARATORS['header']}
-{EMOJIS['welcome']} 🔥🔥 *🎓 B I E N V E N U E  S U R  L E  G L  C O R R O _ B O T 🎓* 🔥🔥
+     🔥 *🎓 BIENVENUE SUR GL CORRO_BOT 🎓* 🔥
 {SEPARATORS['header']}
 
-📚 *Besoin de croiso chap* sans te noyer dans des centaines de fichiers ?  
+📚 *Besoin de croiso chap* sans te perdre dans des centaines de fichiers ?  
 Ne cherche plus, je suis là pour *t’aider à trouver les documents qu'il te faut en quelques clics* ! 🚀  
 
-🛠️ *Comment ça marche :*
+🤔 *Comment ça marche :*
+
 📌 1. Sélectionnez un *semestre*
 📌 2. Choisissez une *partie*
 📌 3. Sélectionnez une *matière*
 📌 4. Accédez aux *documents immédiatement*  
 
-📢 *Prêt à corroter ? C'est parti...*  
+⚡ *T'es prêt ? Corrotons.....* ⚡
 
-⚡ *Appuyez sur le bouton ci-dessous pour commencer !* ⚡
 """
     
     keyboard = [
@@ -208,7 +203,7 @@ async def display_files(query, user_id, value):
 {SEPARATORS['header']}
 
 📂 *Fichiers {value.upper()}*
-_{user_progress[user_id]['subject']}_
+*{user_progress[user_id]['subject']}*
 Page {current_page + 1}/{total_pages}
 
 {SEPARATORS['section']}

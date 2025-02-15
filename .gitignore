@@ -5,14 +5,11 @@ __pycache__/
 
 # Environnement
 .env
-<<<<<<< HEAD
 *credentials*.json
-=======
->>>>>>> aa361f5f5ef65c4ca28755c899a71009d0576c60
 venv/
 .venv/
 temp_backup/
-
+-**
 # Fichiers sensibles
 service_account_file.json
 *.json

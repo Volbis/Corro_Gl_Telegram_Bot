@@ -273,7 +273,7 @@ def list_files_in_folder(service, folder_id, folder_name):
     files = results.get("files", [])
 
     for file in files:
-        if file["mimeType"].startswith("image/"):
+        if file["mimeType"].startswith("png/") or file["mimeType"].startswith("jpeg/") or file["mimeType"].startswith("jpg/"):
             closest_match = find_closest_subject_match(file["name"], SEMESTRE_1_PARTIE_1 + SEMESTRE_1_PARTIE_2 + SEMESTRE_2_PARTIE_1 + SEMESTRE_2_PARTIE_2)
             if closest_match:
                 add_file_to_structure(file, closest_match)

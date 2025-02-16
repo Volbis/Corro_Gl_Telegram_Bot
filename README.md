@@ -1,2 +1,14 @@
-# Corro_Gl_Telegram_Bot
-The project is an interactive Telegram bot for accessing course materials by semester, part, and subject. Users select options via inline buttons to download files from Google Drive. The bot tracks progress, offering an intuitive interface ideal for educational use. It simplifies finding and downloading documents using Python and the Telegram API.
+# GL_Corro_Bot
+#### Video Demo:  <URL HERE>
+#### Description:
+ 
+GL_Corro_Bot is a Telegram bot designed to help us, me and my classroom (SIGL) quickly access course materials, including PDFs and images, categorized by semester, subject, and topic. The bot interacts with Google Drive to fetch and present relevant documents in an organized manner.  
+
+### **Key Features:**  
+**Easy Navigation:** Users can browse materials through an interactive menu.  
+**Structured Content:** Files are categorized by semester, part, and subject.  
+**Instant Access:** Quickly retrieve PDFs and images stored on Google Drive.  
+**Search & Pagination:** Browse through multiple pages of files with ease.  
+**Breadcrumb Navigation:** Always know where you are in the menu.  
+
+Built using **Python, Telegram Bot API, and Google Drive API**, GL_Corro_Bot aims to streamline access to academic resources, making studying more efficient and convenient. 

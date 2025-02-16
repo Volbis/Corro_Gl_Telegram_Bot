@@ -26,7 +26,7 @@ EMOJIS = {
 }
 
 SEPARATORS = {
-    "header": "•••••••••••••••⧞⧞⧞⧞⧞•••••••••••••••",
+    "header": "••••••••••••••••••••••••••⧞⧞⧞⧞⧞••••••••••••••••••••••••••",
     "section": "─⊰⊱─⊰⊱─────────────────────────⊰⊱─⊰⊱─"
 }
 
@@ -87,51 +87,52 @@ class Steps:
 
 user_progress = {}
 
+# Créer un fil d'Ariane basé sur la progression de l'utilisateur
 async def create_breadcrumb(user_progress_data):
-    """Créer un fil d'Ariane basé sur la progression de l'utilisateur"""
     breadcrumb = [f"{EMOJIS['menu']} Menu"]
-    
+
     if "semester" in user_progress_data:
         breadcrumb.append(f"{EMOJIS['semester']} {user_progress_data['semester']}")
     if "part" in user_progress_data:
         breadcrumb.append(f"{EMOJIS['part']} {user_progress_data['part']}")
     if "subject" in user_progress_data:
         breadcrumb.append(f"{EMOJIS['subject']} {user_progress_data['subject']}")
-        
+
     return " → ".join(breadcrumb)
 
+# Gérer la commande /start
 async def start(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
     user_progress[user_id] = {"step": Steps.SEMESTER}
-    
+
     welcome_message = f"""
 {SEPARATORS['header']}
      🔥 *🎓 BIENVENUE SUR GL CORRO_BOT 🎓* 🔥
 {SEPARATORS['header']}
 
-📚 *Besoin de croiso chap* sans te perdre dans des centaines de fichiers ?  
-Ne cherche plus, je suis là pour *t’aider à trouver les documents qu'il te faut en quelques clics* ! 🚀  
+📚 *Besoin de croiso chap* sans te perdre dans des centaines de fichiers ?
+Ne cherche plus, je suis là pour *t’aider à trouver les documents qu'il te faut en quelques clics* ! 🚀
 
 🤔 *Comment ça marche :*
 
 📌 1. Sélectionnez un *semestre*
 📌 2. Choisissez une *partie*
 📌 3. Sélectionnez une *matière*
-📌 4. Accédez aux *documents immédiatement*  
+📌 4. Accédez aux *documents immédiatement*
 
 ⚡ *T'es prêt ? Corrotons.....* ⚡
 
 """
-    
+
     keyboard = [
-        [InlineKeyboardButton(f"{EMOJIS['semester']} {semester}", 
+        [InlineKeyboardButton(f"{EMOJIS['semester']} {semester}",
                              callback_data=f"semester:{semester}")]
         for semester in MATIERES.keys()
     ]
-    
-    keyboard.append([InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal", 
+
+    keyboard.append([InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal",
                                         callback_data="menu:main")])
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         welcome_message,
@@ -139,75 +140,21 @@ Ne cherche plus, je suis là pour *t’aider à trouver les documents qu'il te f
         parse_mode='Markdown'
     )
 
+# Afficher les fichiers avec une interface améliorée
 async def display_files(query, user_id, value):
-    """Affiche les fichiers avec une interface améliorée"""
     semester = user_progress[user_id]["semester"]
     part = user_progress[user_id]["part"]
     subject = user_progress[user_id]["subject"]
     current_page = user_progress[user_id].get("current_page", 0)
     ITEMS_PER_PAGE = 8
 
-    # Message de chargement initial
-    await query.message.edit_text(f"{EMOJIS['loading']} Chargement des fichiers en cours...")
+    await show_loading_message(query)
 
-    # Récupération des fichiers
-    files = get_safe_value(
-        PDF_FILES if value == "pdf" else IMG_FILES,
-        semester, part, subject, 
-        default=[]
-    )
+    files = get_files(value, semester, part, subject)
+    current_files, total_pages = paginate_files(files, current_page, ITEMS_PER_PAGE)
 
-    # Pagination
-    start_idx = current_page * ITEMS_PER_PAGE
-    end_idx = start_idx + ITEMS_PER_PAGE
-    current_files = files[start_idx:end_idx]
-    total_pages = (len(files) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
-
-    # Construction du clavier
-    keyboard = []
-    current_row = []
-    for i, file_info in enumerate(current_files):
-        file_emoji = EMOJIS['pdf'] if value == 'pdf' else EMOJIS['image']
-        truncated_name = truncate_text(file_info['name'], max_length=20)
-        button_text = f"{file_emoji} {truncated_name}"
-        current_row.append(
-            InlineKeyboardButton(button_text, callback_data=f"file:{file_info['id']}")
-        )
-        
-        if len(current_row) == 2 or i == len(current_files) - 1:
-            keyboard.append(current_row)
-            current_row = []
-
-    # Ajout des boutons de navigation
-    nav_buttons = []
-    if current_page > 0:
-        nav_buttons.append(InlineKeyboardButton("◀️", callback_data="page:prev"))
-    nav_buttons.append(InlineKeyboardButton(f"{current_page + 1}/{total_pages}", callback_data="none"))
-    if current_page < total_pages - 1:
-        nav_buttons.append(InlineKeyboardButton("▶️", callback_data="page:next"))
-    
-    if nav_buttons:
-        keyboard.append(nav_buttons)
-
-    # Boutons de navigation globale
-    keyboard.append([
-        InlineKeyboardButton(f"{EMOJIS['back']} Retour", callback_data="file:back"),
-        InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal", callback_data="menu:main")
-    ])
-
-    # Création du message avec fil d'Ariane
-    breadcrumb = await create_breadcrumb(user_progress[user_id])
-    message_text = f"""
-{SEPARATORS['header']}
-{breadcrumb}
-{SEPARATORS['header']}
-
-📂 *Fichiers {value.upper()}*
-*{user_progress[user_id]['subject']}*
-Page {current_page + 1}/{total_pages}
-
-{SEPARATORS['section']}
-"""
+    keyboard = build_keyboard(current_files, value, current_page, total_pages)
+    message_text = await create_message_text(user_progress[user_id], value, current_page, total_pages)
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.message.edit_text(
@@ -216,13 +163,91 @@ Page {current_page + 1}/{total_pages}
         parse_mode='Markdown'
     )
 
+# Afficher un message de chargement initial
+async def show_loading_message(query):
+    await query.message.edit_text(f"{EMOJIS['loading']} Chargement des fichiers en cours...")
+
+# Récupérer les fichiers en fonction du type de fichier et des paramètres de l'utilisateur
+def get_files(value, semester, part, subject):
+    return get_safe_value(
+        PDF_FILES if value == "pdf" else IMG_FILES,
+        semester, part, subject,
+        default=[]
+    )
+
+# Gérer la pagination des fichiers
+def paginate_files(files, current_page, items_per_page):
+    start_idx = current_page * items_per_page
+    end_idx = start_idx + items_per_page
+    current_files = files[start_idx:end_idx]
+    total_pages = (len(files) + items_per_page - 1) // items_per_page
+    return current_files, total_pages
+
+# Construire le clavier complet avec les fichiers et les boutons de navigation
+def build_keyboard(current_files, value, current_page, total_pages):
+    keyboard = []
+    current_row = []
+
+    for i, file_info in enumerate(current_files):
+        file_emoji = EMOJIS['pdf'] if value == 'pdf' else EMOJIS['image']
+        truncated_name = truncate_text(file_info['name'], max_length=20)
+        button_text = f"{file_emoji} {truncated_name}"
+        current_row.append(
+            InlineKeyboardButton(button_text, callback_data=f"file:{file_info['id']}")
+        )
+
+        if len(current_row) == 2 or i == len(current_files) - 1:
+            keyboard.append(current_row)
+            current_row = []
+
+    nav_buttons = build_navigation_buttons(current_page, total_pages)
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+
+    keyboard.append(build_global_navigation_buttons())
+
+    return keyboard
+
+# Construire les boutons de navigation entre les pages
+def build_navigation_buttons(current_page, total_pages):
+    nav_buttons = []
+    if current_page > 0:
+        nav_buttons.append(InlineKeyboardButton("◀️", callback_data="page:prev"))
+    nav_buttons.append(InlineKeyboardButton(f"{current_page + 1}/{total_pages}", callback_data="none"))
+    if current_page < total_pages - 1:
+        nav_buttons.append(InlineKeyboardButton("▶️", callback_data="page:next"))
+    return nav_buttons
+
+# Construire les boutons de navigation globale
+def build_global_navigation_buttons():
+    return [
+        InlineKeyboardButton(f"{EMOJIS['back']} Retour", callback_data="file:back"),
+        InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal", callback_data="menu:main")
+    ]
+
+# Créer le texte du message avec le fil d'Ariane
+async def create_message_text(user_progress, value, current_page, total_pages):
+    breadcrumb = await create_breadcrumb(user_progress)
+    return f"""
+{SEPARATORS['header']}
+{breadcrumb}
+{SEPARATORS['header']}
+
+📂 *Fichiers {value.upper()}*
+*{user_progress['subject']}*
+Page {current_page + 1}/{total_pages}
+
+{SEPARATORS['section']}
+"""
+
+# Gérer les callbacks des boutons
 async def handle_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     user_id = query.from_user.id
 
     print(f"Callback reçu - Action: {query.data}")
     print(f"État actuel de l'utilisateur: {user_progress.get(user_id, 'Non trouvé')}")
-    
+
     if user_id not in user_progress:
         await query.message.reply_text(
             f"{EMOJIS['error']} Session expirée. Veuillez utiliser /start pour recommencer."
@@ -252,15 +277,15 @@ async def handle_callback(update: Update, context: CallbackContext) -> None:
 
     await query.answer()
 
+# Gérer le retour au menu principal
 async def handle_menu_return(query, user_id):
-    """Gestion du retour au menu principal"""
     user_progress[user_id] = {"step": Steps.SEMESTER}
     keyboard = [
-        [InlineKeyboardButton(f"{EMOJIS['semester']} {semester}", 
+        [InlineKeyboardButton(f"{EMOJIS['semester']} {semester}",
                              callback_data=f"semester:{semester}")]
         for semester in MATIERES.keys()
     ]
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.message.edit_text(
         f"{EMOJIS['menu']} *Menu Principal*\nVeuillez sélectionner un semestre :",
@@ -268,19 +293,19 @@ async def handle_menu_return(query, user_id):
         parse_mode='Markdown'
     )
 
+# Gérer la sélection du semestre
 async def handle_semester_selection(query, user_id, value):
-    """Gestion de la sélection du semestre"""
     if value in MATIERES:
         user_progress[user_id].update({
             "step": Steps.PART,
             "semester": value
         })
         keyboard = [
-            [InlineKeyboardButton(f"{EMOJIS['part']} {part}", 
+            [InlineKeyboardButton(f"{EMOJIS['part']} {part}",
                                 callback_data=f"part:{part}")]
             for part in MATIERES[value].keys()
         ]
-        keyboard.append([InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal", 
+        keyboard.append([InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal",
                                             callback_data="menu:main")])
 
         breadcrumb = await create_breadcrumb(user_progress[user_id])
@@ -294,23 +319,23 @@ Veuillez choisir une partie :
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.edit_text(message, reply_markup=reply_markup, parse_mode='Markdown')
 
+# Gérer la sélection de la partie
 async def handle_part_selection(query, user_id, value):
-    """Gestion de la sélection de la partie"""
     semester = user_progress[user_id]["semester"]
     if value in MATIERES[semester]:
         user_progress[user_id].update({
             "step": Steps.SUBJECT,
             "part": value
         })
-        
+
         keyboard = []
         subjects = MATIERES[semester][value]
         for subject in subjects:
             keyboard.append([
-                InlineKeyboardButton(f"{EMOJIS['subject']} {subject}", 
+                InlineKeyboardButton(f"{EMOJIS['subject']} {subject}",
                                    callback_data=f"subject:{subject}")
             ])
-        
+
         keyboard.append([
             InlineKeyboardButton(f"{EMOJIS['back']} Retour", callback_data="semester:{semester}"),
             InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal", callback_data="menu:main")
@@ -327,8 +352,8 @@ Veuillez choisir une matière :
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.edit_text(message, reply_markup=reply_markup, parse_mode='Markdown')
 
+# Gérer la sélection de la matière
 async def handle_subject_selection(query, user_id, value):
-    """Gestion de la sélection de la matière"""
     semester = user_progress[user_id]["semester"]
     part = user_progress[user_id]["part"]
     if value in MATIERES[semester][part]:
@@ -336,14 +361,15 @@ async def handle_subject_selection(query, user_id, value):
             "step": Steps.FILE_TYPE,
             "subject": value
         })
-        
+        print(Steps.FILE_TYPE)
+
         keyboard = [
             [InlineKeyboardButton(f"{EMOJIS['pdf']} PDF", callback_data="file_type:pdf")],
             [InlineKeyboardButton(f"{EMOJIS['image']} Image", callback_data="file_type:image")],
             [InlineKeyboardButton(f"{EMOJIS['back']} Retour", callback_data=f"part:{part}"),
              InlineKeyboardButton(f"{EMOJIS['menu']} Menu Principal", callback_data="menu:main")]
         ]
-        
+
         breadcrumb = await create_breadcrumb(user_progress[user_id])
         message = f"""
 {SEPARATORS['header']}
@@ -355,32 +381,32 @@ Choisissez le type de fichier pour *{value}* :
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.edit_text(message, reply_markup=reply_markup, parse_mode='Markdown')
 
+# Gérer la sélection du type de fichier
 async def handle_file_type_selection(query, user_id, value):
-    """Gestion de la sélection du type de fichier"""
+    print("value is   :", value)
     user_progress[user_id].update({
         "step": Steps.FILE,
         "file_type": value,
         "current_page": 0
     })
+    print("value is rr  :", value)
     await display_files(query, user_id, value)
 
-
+# Gérer la navigation entre les pages
 async def handle_page_navigation(query, user_id, value):
-    """Gestion de la navigation entre les pages"""
     if value == "next":
         user_progress[user_id]["current_page"] += 1
     elif value == "prev":
         user_progress[user_id]["current_page"] -= 1
-    
+
     await display_files(query, user_id, user_progress[user_id]["file_type"])
 
+# Gérer la sélection d'un fichier
 async def handle_file_selection(query, user_id, value):
-    """Gestion de la sélection d'un fichier"""
     if value == "back":
         await handle_previous_step(query, user_id)
         return
 
-    # Message de chargement
     loading_message = await query.message.edit_text(
         f"{EMOJIS['loading']} Téléchargement en cours...",
         parse_mode='Markdown'
@@ -388,37 +414,40 @@ async def handle_file_selection(query, user_id, value):
 
     if FETCH_FROM_DRIVE:
         try:
+            # Récupérer les métadonnées du fichier
+            file_metadata = drive_service.files().get(fileId=value, fields='name,mimeType').execute()
+            print("file_metadata is:", file_metadata)
+            original_filename = file_metadata.get('name', f"document_{value}")
+            
+            # Télécharger directement le fichier sans vérification de type
             file_data = await download_file(value)
             if file_data:
-                # Message de succès
                 await loading_message.edit_text(
                     f"{EMOJIS['success']} Téléchargement réussi! Envoi du fichier...",
                     parse_mode='Markdown'
                 )
-                
+
+                # Envoyer le fichier avec son nom original
                 await query.message.reply_document(
                     document=file_data,
-                    filename=f"{user_progress[user_id]['subject']}_{value}.{user_progress[user_id]['file_type']}"
+                    filename=original_filename
                 )
-                
-                # Retour à l'affichage des fichiers après le téléchargement
+
                 await display_files(query, user_id, user_progress[user_id]['file_type'])
-                
             else:
                 await loading_message.edit_text(
                     f"{EMOJIS['error']} Erreur lors du téléchargement. Veuillez réessayer.",
                     parse_mode='Markdown'
                 )
-                # Retour à l'affichage des fichiers après l'erreur
-                await asyncio.sleep(2)  # Attendre 2 secondes pour que l'utilisateur puisse voir le message d'erreur
+                await asyncio.sleep(2)
                 await display_files(query, user_id, user_progress[user_id]['file_type'])
-                
+
         except Exception as e:
+            print(f"Erreur lors du téléchargement: {str(e)}")
             await loading_message.edit_text(
                 f"{EMOJIS['error']} Une erreur est survenue : {str(e)}",
                 parse_mode='Markdown'
             )
-            # Retour à l'affichage des fichiers après l'erreur
             await asyncio.sleep(2)
             await display_files(query, user_id, user_progress[user_id]['file_type'])
     else:
@@ -426,17 +455,14 @@ async def handle_file_selection(query, user_id, value):
             f"{EMOJIS['success']} Mode simulation : Téléchargement simulé",
             parse_mode='Markdown'
         )
-        # Retour à l'affichage des fichiers en mode simulation
         await asyncio.sleep(2)
         await display_files(query, user_id, user_progress[user_id]['file_type'])
 
-    # Ne pas supprimer la session de l'utilisateur
-    # del user_progress[user_id]  <- Cette ligne est supprimée
 
+# Gérer le retour à l'étape précédente
 async def handle_previous_step(query, user_id):
-    """Gestion du retour à l'étape précédente"""
     current_step = user_progress[user_id]["step"]
-    
+
     if current_step == Steps.FILE:
         user_progress[user_id].update({
             "step": Steps.FILE_TYPE,
@@ -447,7 +473,7 @@ async def handle_previous_step(query, user_id):
             [InlineKeyboardButton(f"{EMOJIS['image']} Image", callback_data="file_type:image")],
             [InlineKeyboardButton(f"{EMOJIS['back']} Retour", callback_data="menu:main")]
         ]
-        
+
         breadcrumb = await create_breadcrumb(user_progress[user_id])
         message = f"""
 {SEPARATORS['header']}
@@ -463,8 +489,14 @@ Choisissez un type de fichier :
             parse_mode='Markdown'
         )
 
+# Gérer la commande /stats
+async def handle_stats_command(update: Update, context: CallbackContext) -> None:
+    stats = get_file_statistics()
+    message = format_message("Statistiques du Bot", stats)
+    await update.message.reply_text(message, parse_mode='Markdown')
+
+# Téléchargement d'un fichier depuis Google Drive
 async def download_file(file_id: str) -> io.BytesIO:
-    """Téléchargement d'un fichier depuis Google Drive"""
     try:
         request = drive_service.files().get_media(fileId=file_id)
         file = io.BytesIO()
@@ -480,8 +512,8 @@ async def download_file(file_id: str) -> io.BytesIO:
         print(f"Erreur de téléchargement : {e}")
         return None
 
+# Annulation de la conversation
 async def cancel(update: Update, context: CallbackContext) -> None:
-    """Annulation de la conversation"""
     user_id = update.effective_user.id
     if user_id in user_progress:
         del user_progress[user_id]
@@ -490,14 +522,75 @@ async def cancel(update: Update, context: CallbackContext) -> None:
         parse_mode='Markdown'
     )
 
+# Compter le nombre de fichiers (PDF et Images) par matière pour un semestre et une partie donnés
+def count_files_by_subject(semester: str, part: str) -> dict:
+    result = {}
+    for subject in MATIERES[semester][part]:
+        pdf_count = len(get_safe_value(PDF_FILES, semester, part, subject, default=[]))
+        img_count = len(get_safe_value(IMG_FILES, semester, part, subject, default=[]))
+        result[subject] = {
+            'pdf': pdf_count,
+            'images': img_count,
+            'total': pdf_count + img_count
+        }
+    return result
+
+# Retourner des statistiques globales sur les fichiers du bot
+def get_file_statistics() -> dict:
+    stats = {
+        'total_pdf': 0,
+        'total_images': 0,
+        'subjects_with_files': 0,
+        'empty_subjects': 0
+    }
+
+    for semester in MATIERES:
+        for part in MATIERES[semester]:
+            for subject in MATIERES[semester][part]:
+                pdfs = len(get_safe_value(PDF_FILES, semester, part, subject, default=[]))
+                imgs = len(get_safe_value(IMG_FILES, semester, part, subject, default=[]))
+
+                stats['total_pdf'] += pdfs
+                stats['total_images'] += imgs
+
+                if pdfs + imgs > 0:
+                    stats['subjects_with_files'] += 1
+                else:
+                    stats['empty_subjects'] += 1
+
+    return stats
+
+# Formater un message avec titre et contenu pour l'affichage dans Telegram
+def format_message(title: str, content: dict, add_separators: bool = True) -> str:
+    message = []
+
+    if add_separators:
+        message.append(SEPARATORS['header'])
+
+    message.append(f"*{title}*\n")
+
+    for key, value in content.items():
+        if isinstance(value, dict):
+            message.append(f"*{key}*:")
+            for sub_key, sub_value in value.items():
+                message.append(f"  • {sub_key}: {sub_value}")
+        else:
+            message.append(f"• {key}: {value}")
+
+    if add_separators:
+        message.append(SEPARATORS['section'])
+
+    return "\n".join(message)
+
+# Tronquer le texte à la longueur maximale
 def truncate_text(text: str, max_length: int = 30) -> str:
-    """Tronque le texte à la longueur maximale"""
     if len(text) <= max_length:
         return text
+    # Ajuster la longueur pour tenir compte des points de suspension
     return text[:max_length-3] + "..."
 
+# Accès sécurisé aux valeurs imbriquées
 def get_safe_value(dictionary, *keys, default=None):
-    """Accès sécurisé aux valeurs imbriquées"""
     try:
         result = dictionary
         for key in keys:
@@ -506,20 +599,16 @@ def get_safe_value(dictionary, *keys, default=None):
     except (KeyError, TypeError):
         return default
 
+# Fonction principale pour démarrer le bot
 def main() -> None:
-    """Fonction principale pour démarrer le bot"""
-    # Configuration des logs
     print(f"{EMOJIS['loading']} Démarrage du bot...")
-    
-    # Création de l'application
+
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Ajout des handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CallbackQueryHandler(handle_callback))
 
-    # Démarrage du bot
     print(f"{EMOJIS['success']} Bot démarré avec succès!")
     application.run_polling()
 

@@ -1,4 +1,4 @@
-# GL_Corro_Bot
+# GL Corro_Bot
 #### Video Demo: https://youtu.be/rwTxcJk_UIs?si=23Vip2mte1wdxL0Y
 #### Description:
  
